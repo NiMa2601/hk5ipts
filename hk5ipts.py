@@ -40,6 +40,22 @@ def I(th, tps, ta, rs, ods):
 # =========================
 # INTERFACE
 # =========================
+import streamlit as st
+
+# =========================
+# SIDEBAR (CONTROLE)
+# =========================
+st.sidebar.title("HK5-IPTS Control Panel")
+
+TH = st.sidebar.slider("Tecnologia Humana (TH)", 0.0, 1.0, 0.7)
+TPs = st.sidebar.slider("Tecnologias Pedagógicas (TPs)", 0.0, 1.0, 0.6)
+TA = st.sidebar.slider("Tecnologia Assistiva (TA)", 0.0, 1.0, 0.5)
+RS = st.sidebar.slider("Sustentabilidade (5Rs)", 0.0, 1.0, 0.5)
+ODS = st.sidebar.slider("ODS Globais", 0.0, 1.0, 0.8)
+
+# =========================
+# TÍTULO PRINCIPAL
+# =========================
 st.title("HK5-IPTS – Sistema de Inclusão Educacional")
 
 st.sidebar.header("Parâmetros")
