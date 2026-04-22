@@ -175,10 +175,20 @@ st.line_chart(I_t)
 import torch
 from torch_geometric.utils import from_networkx
 
+from torch_geometric.utils import from_networkx
+import torch
+
+# =========================
+# CONVERTER GRAFO CORRETAMENTE
+# =========================
 data = from_networkx(G)
 
-# features simuladas dos nós
+# features dos nós (simuladas)
 data.x = torch.rand((G.number_of_nodes(), 3))
+
+# =========================
+# MODELO GNN CORRIGIDO
+# =========================
 import torch.nn.functional as F
 from torch_geometric.nn import GCNConv
 
@@ -192,9 +202,20 @@ class GNN(torch.nn.Module):
         x = F.relu(self.conv1(x, edge_index))
         x = self.conv2(x, edge_index)
         return x
-        model = GNN()
 
-out = model(data.x, data.edge_index)
+# =========================
+# EXECUÇÃO SEGURA
+# =========================
+st.header("IA (GNN corrigida)")
+
+model = GNN()
+
+# proteção contra erro de dimensão
+if hasattr(data, "edge_index") and data.edge_index is not None:
+    out = model(data.x, data.edge_index)
+    st.write(out.detach().numpy())
+else:
+    st.warning("Grafo não estruturado corretamente")
 
 st.header("IA (GNN real)")
 st.write(out.detach().numpy())
