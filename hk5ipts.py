@@ -155,8 +155,9 @@ st.write("Densidade da rede:")
 st.write(nx.density(G))
 
 # =========================
-# IA (GNN REAL)
+# IA (GNN REAL) AVANÇADA
 # =========================
+
 st.header("IA (GNN real)")
 
 # =========================
@@ -168,27 +169,98 @@ data = from_networkx(G)
 data.x = torch.rand((G.number_of_nodes(), 3))  # Exemplo de 3 características por nó
 
 # =========================
-# MODELO GNN CORRIGIDO
+# MODELO GNN AVANÇADO
 # =========================
-class GNN(torch.nn.Module):
+class AdvancedGNN(torch.nn.Module):
     def __init__(self):
-        super(GNN, self).__init__()
-        self.conv1 = GCNConv(3, 8)  # 3 features para 8 neurônios
-        self.conv2 = GCNConv(8, 1)  # 8 neurônios para 1 valor predito
+        super(AdvancedGNN, self).__init__()
+
+        self.conv1 = GCNConv(3, 16)
+        self.bn1 = torch.nn.BatchNorm1d(16)
+
+        self.conv2 = GCNConv(16, 16)
+        self.bn2 = torch.nn.BatchNorm1d(16)
+
+        self.conv3 = GCNConv(16, 8)
+        self.bn3 = torch.nn.BatchNorm1d(8)
+
+        self.conv_out = GCNConv(8, 1)
+
+        self.dropout = torch.nn.Dropout(p=0.3)
 
     def forward(self, x, edge_index):
-        x = F.relu(self.conv1(x, edge_index))
-        x = self.conv2(x, edge_index)
-        return x
+
+        # Camada 1
+        x1 = self.conv1(x, edge_index)
+        x1 = self.bn1(x1)
+        x1 = F.relu(x1)
+        x1 = self.dropout(x1)
+
+        # Camada 2 (residual)
+        x2 = self.conv2(x1, edge_index)
+        x2 = self.bn2(x2)
+        x2 = F.relu(x2)
+        x2 = x2 + x1  # RESIDUAL CONNECTION
+
+        # Camada 3
+        x3 = self.conv3(x2, edge_index)
+        x3 = self.bn3(x3)
+        x3 = F.relu(x3)
+
+        # Saída
+        out = self.conv_out(x3, edge_index)
+
+        return out, x3  # retorna também embeddings
 
 # =========================
-# EXECUÇÃO SEGURA
+# CONFIGURANDO OTIMIZADOR E PERDA
 # =========================
-model = GNN()
+optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
+loss_fn = torch.nn.MSELoss()
 
-# Certifique-se de que o grafo está estruturado corretamente
-if hasattr(data, "edge_index") and data.edge_index is not None:
-    out = model(data.x, data.edge_index)
-    st.write(out.detach().numpy())
-else:
-    st.warning("Grafo não estruturado corretamente")
+loss_history = []
+
+# =========================
+# TREINAMENTO COM MONITORAMENTO
+# =========================
+for epoch in range(100):  # Número de épocas de treinamento
+    model.train()  # Modo de treinamento
+    
+    optimizer.zero_grad()  # Zera os gradientes
+    
+    # Passa os dados pela rede
+    out, embeddings = model(data.x, data.edge_index)  
+    
+    # Calculando a perda
+    target = torch.tensor([[index] for _ in range(G.number_of_nodes())], dtype=torch.float)  # Target (I(t) por nó)
+    loss = loss_fn(out, target)  # Função de perda
+    
+    loss.backward()  # Retropropagação
+    optimizer.step()  # Atualiza os pesos
+    
+    loss_history.append(loss.item())  # Armazena a perda
+    
+    if epoch % 10 == 0:  # Exibe a perda a cada 10 iterações
+        st.write(f"Epoch {epoch} | Loss: {loss.item():.4f}")
+
+# =========================
+# RESULTADOS FINAIS
+# =========================
+st.subheader("Resultados da GNN")
+
+st.write("Previsão da IA (I(t) por nó):")
+st.write(out.detach().numpy())  # Saída do modelo (I(t) calculado)
+
+# =========================
+# ANÁLISE DA CONVERGÊNCIA
+# =========================
+st.subheader("Análise da Convergência do Modelo")
+
+st.line_chart(loss_history)  # Exibe a curva de convergência
+
+# =========================
+# EMBEDDINGS (INTERPRETAÇÃO DA REDE)
+# =========================
+st.subheader("Embeddings da Rede (Representação Latente)")
+
+st.write(embeddings.detach().numpy())  # Exibe os embeddings da rede
