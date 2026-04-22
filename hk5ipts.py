@@ -172,3 +172,29 @@ t = np.linspace(0, 10, 50)
 I_t = [0.7 + 0.1 * np.sin(i) for i in t]
 
 st.line_chart(I_t)
+import torch
+from torch_geometric.utils import from_networkx
+
+data = from_networkx(G)
+
+# features simuladas dos nós
+data.x = torch.rand((G.number_of_nodes(), 3))
+import torch.nn.functional as F
+from torch_geometric.nn import GCNConv
+
+class GNN(torch.nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.conv1 = GCNConv(3, 8)
+        self.conv2 = GCNConv(8, 1)
+
+    def forward(self, x, edge_index):
+        x = F.relu(self.conv1(x, edge_index))
+        x = self.conv2(x, edge_index)
+        return x
+        model = GNN()
+
+out = model(data.x, data.edge_index)
+
+st.header("IA (GNN real)")
+st.write(out.detach().numpy())
