@@ -1,6 +1,11 @@
 import streamlit as st
 import networkx as nx
 import plotly.graph_objects as go
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from torch_geometric.nn import GCNConv
+from torch_geometric.utils import from_networkx
 
 st.set_page_config(page_title="HK5-IPTS", layout="wide")
 
@@ -38,11 +43,6 @@ def I(th, tps, ta, rs, ods):
     )
 
 # =========================
-# INTERFACE
-# =========================
-import streamlit as st
-
-# =========================
 # SIDEBAR (CONTROLE)
 # =========================
 st.sidebar.title("HK5-IPTS Control Panel")
@@ -58,16 +58,10 @@ ODS = st.sidebar.slider("ODS Globais", 0.0, 1.0, 0.8)
 # =========================
 st.title("HK5-IPTS – Sistema de Inclusão Educacional")
 
-st.sidebar.header("Parâmetros")
-
-TH = st.sidebar.slider("TH (Tecnologia Humana)", 0.0, 1.0, 0.8)
-TPs = st.sidebar.slider("TPs (Tecnologias Pedagógicas)", 0.0, 1.0, 0.7)
-TA = st.sidebar.slider("TA (Tecnologia Assistiva)", 0.0, 1.0, 0.6)
-RS = st.sidebar.slider("5Rs (Sustentabilidade)", 0.0, 1.0, 0.5)
-ODS = st.sidebar.slider("ODS (Objetivos Globais)", 0.0, 1.0, 0.9)
-
+# =========================
+# CÁLCULO DE I(t)
+# =========================
 index = I(TH, TPs, TA, RS, ODS)
-
 st.metric("Índice de Inclusão I(t)", round(index, 3))
 
 # =========================
@@ -148,6 +142,7 @@ st.write("O sistema simula relações entre nós da rede educacional e calcula i
 st.header("Validação do Sistema")
 
 st.write("O modelo permite análise de estabilidade da rede e sensibilidade dos parâmetros educacionais.")
+
 st.header("Análise de Rede")
 
 st.write("Centralidade de grau:")
@@ -158,41 +153,11 @@ st.write(nx.betweenness_centrality(G))
 
 st.write("Densidade da rede:")
 st.write(nx.density(G))
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
 
-class SimpleNN(nn.Module):
-    def __init__(self):
-        super().__init__()
-        self.fc1 = nn.Linear(3, 8)
-        self.fc2 = nn.Linear(8, 1)
-
-    def forward(self, x):
-        return self.fc2(F.relu(self.fc1(x)))
-
-st.header("IA (Rede Neural Simplificada)")
-
-model = SimpleNN()
-
-x = torch.rand((7, 3))
-out = model(x)
-
-st.write(out.detach().numpy())
-import numpy as np
-
-st.header("Evolução Temporal da Inclusão")
-
-t = np.linspace(0, 10, 50)
-
-I_t = [0.7 + 0.1 * np.sin(i) for i in t]
-
-st.line_chart(I_t)
-import torch
-from torch_geometric.utils import from_networkx
-
-from torch_geometric.utils import from_networkx
-import torch
+# =========================
+# IA (GNN REAL)
+# =========================
+st.header("IA (GNN real)")
 
 # =========================
 # CONVERTER GRAFO CORRETAMENTE
@@ -200,19 +165,16 @@ import torch
 data = from_networkx(G)
 
 # features dos nós (simuladas)
-data.x = torch.rand((G.number_of_nodes(), 3))
+data.x = torch.rand((G.number_of_nodes(), 3))  # Exemplo de 3 características por nó
 
 # =========================
 # MODELO GNN CORRIGIDO
 # =========================
-import torch.nn.functional as F
-from torch_geometric.nn import GCNConv
-
 class GNN(torch.nn.Module):
     def __init__(self):
-        super().__init__()
-        self.conv1 = GCNConv(3, 8)
-        self.conv2 = GCNConv(8, 1)
+        super(GNN, self).__init__()
+        self.conv1 = GCNConv(3, 8)  # 3 features para 8 neurônios
+        self.conv2 = GCNConv(8, 1)  # 8 neurônios para 1 valor predito
 
     def forward(self, x, edge_index):
         x = F.relu(self.conv1(x, edge_index))
@@ -222,16 +184,11 @@ class GNN(torch.nn.Module):
 # =========================
 # EXECUÇÃO SEGURA
 # =========================
-st.header("IA (GNN corrigida)")
-
 model = GNN()
 
-# proteção contra erro de dimensão
+# Certifique-se de que o grafo está estruturado corretamente
 if hasattr(data, "edge_index") and data.edge_index is not None:
     out = model(data.x, data.edge_index)
     st.write(out.detach().numpy())
 else:
     st.warning("Grafo não estruturado corretamente")
-
-st.header("IA (GNN real)")
-st.write(out.detach().numpy())
