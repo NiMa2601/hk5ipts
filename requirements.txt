@@ -1,4 +1,4 @@
-streamlit
-networkx
-plotly
 torch
+torch-geometric
+networkx
+numpy
