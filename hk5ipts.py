@@ -132,3 +132,43 @@ st.write("O sistema simula relações entre nós da rede educacional e calcula i
 st.header("Validação do Sistema")
 
 st.write("O modelo permite análise de estabilidade da rede e sensibilidade dos parâmetros educacionais.")
+st.header("Análise de Rede")
+
+st.write("Centralidade de grau:")
+st.write(nx.degree_centrality(G))
+
+st.write("Centralidade de intermediação:")
+st.write(nx.betweenness_centrality(G))
+
+st.write("Densidade da rede:")
+st.write(nx.density(G))
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+class SimpleNN(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.fc1 = nn.Linear(3, 8)
+        self.fc2 = nn.Linear(8, 1)
+
+    def forward(self, x):
+        return self.fc2(F.relu(self.fc1(x)))
+
+st.header("IA (Rede Neural Simplificada)")
+
+model = SimpleNN()
+
+x = torch.rand((7, 3))
+out = model(x)
+
+st.write(out.detach().numpy())
+import numpy as np
+
+st.header("Evolução Temporal da Inclusão")
+
+t = np.linspace(0, 10, 50)
+
+I_t = [0.7 + 0.1 * np.sin(i) for i in t]
+
+st.line_chart(I_t)
