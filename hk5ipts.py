@@ -306,7 +306,6 @@ with col_metric2:
     """, unsafe_allow_html=True)
 
 with col_metric3:
-    # Score visual
     score_pct = int(index * 100)
     st.markdown(f"""
     <div style="text-align: center;">
@@ -357,7 +356,7 @@ fig_radar.update_layout(
 col_radar, col_comp_text = st.columns([1.5, 1.5])
 
 with col_radar:
-    st.plotly_chart(fig_radar, use_container_width=True, key="radar_main")
+    st.plotly_chart(fig_radar, key="radar_main")
 
 with col_comp_text:
     st.markdown("### 📈 Resumo dos Componentes")
@@ -390,7 +389,6 @@ if show_advanced:
             col1, col2 = st.columns([1, 2])
             
             with col1:
-                # Indicador circular
                 valor = comp['valor']
                 cor = "#FF4444" if valor < 0.3 else "#FF8844" if valor < 0.5 else "#FFBB33" if valor < 0.7 else "#44BB44"
                 
@@ -438,7 +436,6 @@ def create_advanced_graph():
         node_y.append(y)
         node_text.append(n)
         
-        # Cor baseada no valor
         val = valores_mapa.get(n, 0.5)
         if val < 0.3:
             node_color.append("#FF4444")
@@ -486,9 +483,8 @@ def create_advanced_graph():
     
     return fig
 
-st.plotly_chart(create_advanced_graph(), use_container_width=True, key="graph_advanced")
+st.plotly_chart(create_advanced_graph(), key="graph_advanced")
 
-# Legenda interativa
 col_leg1, col_leg2, col_leg3, col_leg4 = st.columns(4)
 with col_leg1:
     st.markdown("**TH** - Tecnologia Humana")
@@ -543,9 +539,8 @@ fig_bench.update_layout(
     xaxis=dict(range=[0, 1])
 )
 
-st.plotly_chart(fig_bench, use_container_width=True, key="bench_chart")
+st.plotly_chart(fig_bench, key="bench_chart")
 
-# Interpretação do benchmark
 diferenca_nacional = index - 0.5
 diferenca_lider = index - 0.75
 diferenca_meta = index - 0.85
@@ -583,7 +578,6 @@ da rede educacional se relacionam e influenciam o índice final de inclusão.
 Ele identifica padrões que podem não ser óbvios na análise linear.
 """)
 
-# Preparar dados
 data = from_networkx(G)
 
 data.x = torch.tensor([ 
@@ -596,9 +590,6 @@ data.x = torch.tensor([
     [ODS, 1, 0] 
 ], dtype=torch.float)
 
-# =========================
-# MODELO GAT AVANÇADO
-# =========================
 class GATHK5Advanced(nn.Module):
     def __init__(self):
         super().__init__()
@@ -617,9 +608,6 @@ class GATHK5Advanced(nn.Module):
         out = torch.sigmoid(self.out(x))
         return out, x
 
-# =========================
-# INICIALIZAR ESTADO
-# =========================
 if "model" not in st.session_state:
     st.session_state.model = GATHK5Advanced()
     st.session_state.loss_history = []
@@ -629,13 +617,10 @@ if "model" not in st.session_state:
 model = st.session_state.model
 target = torch.tensor([[index] for _ in range(len(nodes))], dtype=torch.float)
 
-# =========================
-# TREINAMENTO
-# =========================
 col_train1, col_train2, col_train3 = st.columns([1, 2, 1])
 
 with col_train1:
-    train = st.button("🚀 Treinar GAT", use_container_width=True, key="train_btn")
+    train = st.button("🚀 Treinar GAT", key="train_btn")
 
 with col_train2:
     if st.session_state.training_complete:
@@ -644,7 +629,7 @@ with col_train2:
         st.info("⏸️ Clique em 'Treinar GAT' para iniciar")
 
 with col_train3:
-    if st.button("🔄 Resetar", use_container_width=True):
+    if st.button("🔄 Resetar"):
         st.session_state.model = GATHK5Advanced()
         st.session_state.loss_history = []
         st.session_state.training_complete = False
@@ -684,14 +669,11 @@ if train:
                 "Epoch": range(len(st.session_state.loss_history)),
                 "Loss": st.session_state.loss_history
             })
-            loss_chart.line_chart(loss_df.set_index("Epoch"), use_container_width=True)
+            loss_chart.line_chart(loss_df.set_index("Epoch"))
     
     st.session_state.training_complete = True
     status_text.success("✅ **Treinamento concluído!** Modelo aprendeu os padrões.")
 
-# =========================
-# RESULTADOS GAT
-# =========================
 if show_predictions:
     st.markdown("---")
     st.subheader("🔮 Predições do Modelo GAT")
@@ -713,7 +695,7 @@ if show_predictions:
                 for p in predictions.flatten()
             ]
         })
-        st.dataframe(results_df, use_container_width=True, hide_index=True)
+        st.dataframe(results_df, hide_index=True)
 
     with col_pred2:
         st.markdown("**📈 Análise Comparativa**")
@@ -743,9 +725,6 @@ if show_predictions:
         - **Confiança:** {"Alta" if abs(delta) < 0.05 else "Média" if abs(delta) < 0.1 else "Baixa"}
         """)
 
-# =========================
-# HISTÓRICO DE TREINAMENTO
-# =========================
 if st.session_state.loss_history:
     st.markdown("---")
     st.subheader("📉 Histórico de Treinamento")
@@ -767,7 +746,6 @@ if st.session_state.loss_history:
         fillcolor="rgba(255, 0, 0, 0.1)"
     ))
     
-    # Tendência
     z = np.polyfit(loss_df["Epoch"], loss_df["Loss"], 2)
     p = np.poly1d(z)
     fig.add_trace(go.Scatter(
@@ -786,7 +764,7 @@ if st.session_state.loss_history:
         height=400
     )
     
-    st.plotly_chart(fig, use_container_width=True, key="loss_chart")
+    st.plotly_chart(fig, key="loss_chart")
     
     col_s1, col_s2, col_s3 = st.columns(3)
     
@@ -798,9 +776,6 @@ if st.session_state.loss_history:
         improvement = ((st.session_state.loss_history[0] - st.session_state.loss_history[-1]) / st.session_state.loss_history[0] * 100)
         st.metric("Melhoria", f"{improvement:.1f}%", delta=f"{improvement:+.1f}%")
 
-# =========================
-# CENÁRIOS E SIMULAÇÕES
-# =========================
 st.markdown("---")
 st.header("🎮 Simulações e Cenários")
 
@@ -859,7 +834,6 @@ with col_scen2:
     st.metric("Índice Customizado", round(index_manual, 4),
               delta=round(index_manual - index, 4))
 
-# Comparação Visual
 fig_comp = go.Figure()
 
 fig_comp.add_trace(go.Bar(
@@ -883,11 +857,8 @@ fig_comp.update_layout(
     yaxis=dict(range=[0, 1])
 )
 
-st.plotly_chart(fig_comp, use_container_width=True, key="comp_chart")
+st.plotly_chart(fig_comp, key="comp_chart")
 
-# =========================
-# RECOMENDAÇÕES FINAIS
-# =========================
 st.markdown("---")
 st.header("📋 Relatório Executivo e Recomendações")
 
@@ -914,7 +885,6 @@ with st.expander("📄 Gerar Relatório Completo", expanded=False):
     | ODS (Objetivos) | {ODS:.2%} | {0.1*ODS:.4f} | {'🟢' if ODS >= 0.7 else '🟡' if ODS >= 0.4 else '🔴'} |
     
     ## 3. PROBLEMAS IDENTIFICADOS
-    
     """
     
     for problema in interpretacao['problemas']:
@@ -933,7 +903,6 @@ with st.expander("📄 Gerar Relatório Completo", expanded=False):
     - Média Nacional: 0.5000
     - Líderes Globais: 0.7500
     - Meta ODS 2030: 0.8500
-    
     """
     
     st.text_area("Relatório:", value=relatorio, height=400, disabled=True)
@@ -948,7 +917,6 @@ with st.expander("📄 Gerar Relatório Completo", expanded=False):
         )
     
     with col_down2:
-        # CSV com dados
         csv_data = f"""Componente,Valor,Peso,Contribuição
 TH,{TH},0.30,{0.3*TH}
 TPs,{TPs},0.25,{0.25*TPs}
@@ -964,9 +932,6 @@ TOTAL,{index},1.00,{index}
             mime="text/csv"
         )
 
-# =========================
-# RODAPÉ
-# =========================
 st.markdown("---")
 st.markdown("""
 <div style="text-align: center; padding: 20px; color: gray; font-size: 12px;">
@@ -975,4 +940,3 @@ st.markdown("""
     <p>Alinhado com ODS 4 (Educação de Qualidade) e ODS 5 (Igualdade de Gênero)</p>
 </div>
 """, unsafe_allow_html=True)
-
