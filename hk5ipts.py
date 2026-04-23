@@ -83,9 +83,6 @@ st.metric("Índice de Inclusão I(t)", round(index, 3))
 # =========================
 pos = nx.spring_layout(G, seed=42)
 
-# Gerenciamento da renderização do gráfico
-graph_placeholder = st.empty()
-
 # Função para atualizar o gráfico com animação
 def update_graph():
     edge_x, edge_y = [], []
@@ -117,12 +114,10 @@ def update_graph():
         name="Nós"
     ))
 
-    # Animação simples no gráfico (redesenhando várias vezes)
-    for _ in range(5):  # Simulando a animação
-        graph_placeholder.plotly_chart(fig, use_container_width=True)
-    
+    return fig
+
 # Atualiza o gráfico
-update_graph()
+st.plotly_chart(update_graph(), use_container_width=True)
 
 # =========================
 # DOSSÊ (ARTIGO EMBUTIDO)
@@ -226,7 +221,8 @@ train = st.button("🚀 Treinar GAT")
 
 if train:
     model.train()
-    progress_bar = st.progress(0)  # Barra de progresso
+    progress_bar = st.progress(0)
+    loss_placeholder = st.empty()
     
     for epoch in range(70):
         optimizer.zero_grad()
@@ -236,11 +232,13 @@ if train:
         optimizer.step()
         
         # Atualizar a barra de progresso
-        progress_bar.progress((epoch + 1) / 70)
+        progress = (epoch + 1) / 70
+        progress_bar.progress(progress)
         
         loss_history.append(loss.item())
+        
         if epoch % 10 == 0:
-            st.write(f"Epoch {epoch} | Loss: {loss.item():.4f}")
+            loss_placeholder.write(f"Epoch {epoch} | Loss: {loss.item():.4f}")
 
 # =========================
 # RESULTADOS FINAIS
@@ -253,8 +251,22 @@ col1, col2 = st.columns(2)
 
 with col1:
     st.subheader("📊 Previsão I(t)")
-    st.write(torch.clamp(out, 0, 1).numpy())
+    predictions = torch.clamp(out, 0, 1).detach().numpy()
+    st.dataframe(
+        pd.DataFrame({
+            "Nó": nodes,
+            "Previsão": predictions.flatten()
+        })
+    )
 
 with col2:
     st.subheader("📈 I(t) médio")
     st.metric("Índice médio", round(float(out.mean()), 3))
+
+# =========================
+# GRÁFICO DE HISTÓRICO DE LOSS
+# =========================
+if loss_history:
+    st.subheader("📉 Histórico de Loss")
+    loss_df = pd.DataFrame({"Epoch": range(len(loss_history)), "Loss": loss_history})
+    st.line_chart(loss_df.set_index("Epoch"))
