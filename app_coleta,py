@@ -1,0 +1,175 @@
+"""
+Interface Streamlit para Coleta de Indicadores
+"""
+
+import streamlit as st
+import pandas as pd
+from database import get_indicadores_coleta, get_brasil_dados, get_ods_indicadores
+from coleta import ColectorIndicadores, criar_template_coleta
+
+st.set_page_config(page_title="HK5-IPTS Coleta", layout="wide")
+
+st.title("📊 HK5-IPTS - Coleta de Indicadores Reais")
+
+st.markdown("""
+Colete dados reais de sua instituição conforme padrões:
+- **INEP** (Instituto Nacional de Estudos)
+- **UNESCO** (Padrões de Inclusão)
+- **ODS 2030** (Nações Unidas)
+""")
+
+# ========================
+# TABS
+# ========================
+
+tabs = st.tabs([
+    "📋 Coletar Dados",
+    "📊 Ver Indicadores",
+    "📊 Dados Brasil",
+    "📈 ODS Indicadores",
+    "📥 Importar Dados"
+])
+
+# ========================
+# TAB 1: COLETAR
+# ========================
+
+with tabs[0]:
+    st.header("Coletar Indicadores")
+    
+    if 'coletor' not in st.session_state:
+        st.session_state.coletor = ColectorIndicadores()
+    
+    coletor = st.session_state.coletor
+    indicadores = get_indicadores_coleta()
+    
+    categoria = st.selectbox("Selecione categoria:", list(indicadores.keys()))
+    
+    st.markdown(f"### {categoria}: {indicadores[categoria]['nome']}")
+    
+    for ind in indicadores[categoria]['indicadores']:
+        col1, col2, col3 = st.columns([2, 2, 1])
+        
+        with col1:
+            st.markdown(f"**{ind['codigo']}** - {ind['nome']}")
+        
+        with col2:
+            if ind['tipo'] == 'binario':
+                valor = st.selectbox("Valor", ["Sim", "Não"], key=ind['codigo'])
+            elif ind['tipo'] == 'percentual':
+                valor = st.slider("Valor (%)", 0, 100, 50, key=ind['codigo'])
+            elif ind['tipo'] == 'escala':
+                valor = st.slider("Valor (1-10)", 1, 10, 5, key=ind['codigo'])
+            else:
+                valor = st.number_input("Valor", key=ind['codigo'])
+        
+        with col3:
+            if st.button("✓ Coletar", key=f"btn_{ind['codigo']}"):
+                coletor.coletar(ind['codigo'], valor)
+                st.success("✅")
+    
+    st.markdown("---")
+    
+    col_b1, col_b2 = st.columns(2)
+    
+    with col_b1:
+        if st.button("📥 Exportar CSV"):
+            df = coletor.exportar_csv()
+            st.download_button(
+                label="Baixar CSV",
+                data=df.to_csv(index=False),
+                file_name="indicadores.csv",
+                mime="text/csv"
+            )
+    
+    with col_b2:
+        if st.button("🔄 Limpar Dados"):
+            st.session_state.coletor = ColectorIndicadores()
+            st.rerun()
+
+# ========================
+# TAB 2: VER INDICADORES
+# ========================
+
+with tabs[1]:
+    st.header("Indicadores Disponíveis para Coleta")
+    
+    indicadores = get_indicadores_coleta()
+    
+    for categoria, info in indicadores.items():
+        with st.expander(f"{categoria}: {info['nome']}"):
+            data = []
+            for ind in info['indicadores']:
+                data.append({
+                    'Código': ind['codigo'],
+                    'Indicador': ind['nome'],
+                    'Tipo': ind['tipo'],
+                    'Frequência': ind['frequencia']
+                })
+            df = pd.DataFrame(data)
+            st.dataframe(df, use_container_width=True, hide_index=True)
+
+# ========================
+# TAB 3: DADOS BRASIL
+# ========================
+
+with tabs[2]:
+    st.header("Dados Oficiais do Brasil (INEP 2023)")
+    
+    brasil = get_brasil_dados()
+    
+    st.markdown(f"**Fonte:** {brasil['fonte']}")
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.metric("Taxa de Matrícula", f"{brasil['taxa_matricula']:.1%}")
+    
+    with col2:
+        st.metric("Taxa de Conclusão", f"{brasil['taxa_conclusao']:.1%}")
+    
+    with col3:
+        st.metric("Professores Especializados", f"{brasil['professores_especializados']:.1%}")
+    
+    col4, col5 = st.columns(2)
+    
+    with col4:
+        st.metric("Escolas com Acessibilidade", f"{brasil['escolas_com_acessibilidade']:.1%}")
+    
+    with col5:
+        st.metric("Alunos com Deficiência", f"{brasil['alunos_com_deficiencia']:.2%}")
+
+# ========================
+# TAB 4: ODS INDICADORES
+# ========================
+
+with tabs[3]:
+    st.header("Indicadores ODS 2030")
+    
+    ods = get_ods_indicadores()
+    
+    for ods_key, ods_info in ods.items():
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            st.markdown(f"### {ods_key}")
+        
+        with col2:
+            st.metric("Título", ods_info['titulo'])
+        
+        with col3:
+            st.metric("Meta 2030", f"{ods_info['meta_2030']:.0%}")
+
+# ========================
+# TAB 5: IMPORTAR
+# ========================
+
+with tabs[4]:
+    st.header("Importar Dados")
+    
+    arquivo = st.file_uploader("Selecione arquivo CSV", type="csv")
+    
+    if arquivo:
+        df = pd.read_csv(arquivo)
+        st.dataframe(df)
+        st.success("✅ Arquivo carregado!")
