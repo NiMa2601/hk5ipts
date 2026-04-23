@@ -975,3 +975,4 @@ st.markdown("""
     <p>Alinhado com ODS 4 (Educação de Qualidade) e ODS 5 (Igualdade de Gênero)</p>
 </div>
 """, unsafe_allow_html=True)
+
