@@ -1,4 +1,11 @@
 import streamlit as st
+# ========================
+# IMPORTAR DATABASE E COLETA
+# ========================
+try:
+    from database import get_ods_indicadores, get_brasil_dados
+except:
+    pass
 import networkx as nx
 import plotly.graph_objects as go
 import plotly.express as px
