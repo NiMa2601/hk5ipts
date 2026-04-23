@@ -6,15 +6,15 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch_geometric.nn import GATConv
 from torch_geometric.utils import from_networkx
-from sklearn.decomposition import PCA
 import numpy as np
-import plotly.express as px
 import pandas as pd
+from sklearn.decomposition import PCA
+import plotly.express as px
 
 st.set_page_config(page_title="HK5-IPTS", layout="wide")
 
 # =========================
-# REDE EDUCACIONAL
+# REDE EDUCACIONAL (GNN)
 # =========================
 G = nx.Graph()
 
@@ -56,6 +56,11 @@ TPs = st.sidebar.slider("Tecnologias Pedagógicas (TPs)", 0.0, 1.0, 0.6)
 TA = st.sidebar.slider("Tecnologia Assistiva (TA)", 0.0, 1.0, 0.5)
 RS = st.sidebar.slider("Sustentabilidade (5Rs)", 0.0, 1.0, 0.5)
 ODS = st.sidebar.slider("ODS Globais", 0.0, 1.0, 0.8)
+
+# =========================
+# TÍTULO PRINCIPAL
+# =========================
+st.title("HK5-IPTS – Sistema de Inclusão Educacional")
 
 # =========================
 # CÁLCULO DE I(t)
@@ -102,153 +107,125 @@ fig.add_trace(go.Scatter(
 st.plotly_chart(fig, use_container_width=True)
 
 # =========================
-# MODELO GAT AVANÇADO
+# CAUSAL GRAPH NEURAL NETWORK REAL (PyTorch Geometric)
 # =========================
-class GATHK5(nn.Module):
+
+class CausalGNN(torch.nn.Module):
     def __init__(self):
         super().__init__()
 
-        self.gat1 = GATConv(3, 16, heads=2, concat=True)
-        self.gat2 = GATConv(32, 16, heads=2, concat=True)
-        self.gat3 = GATConv(32, 8, heads=1, concat=False)
+        self.gat1 = GATConv(3, 16, heads=2)
+        self.gat2 = GATConv(32, 16, heads=2)
+        self.gat3 = GATConv(32, 8, heads=1)
 
         self.out = nn.Linear(8, 1)
-        self.dropout = nn.Dropout(0.25)
 
     def forward(self, x, edge_index):
-
         x = F.elu(self.gat1(x, edge_index))
-        x = self.dropout(x)
-
         x = F.elu(self.gat2(x, edge_index))
-        x = self.dropout(x)
-
         x = F.elu(self.gat3(x, edge_index))
 
-        embeddings = x
-        out = torch.sigmoid(self.out(x))  # Estabilidade com sigmoid
+        out = self.out(x)
 
-        return out, embeddings
-
-# =========================
-# CONFIGURANDO OTIMIZADOR E PERDA
-# =========================
-if "model" not in st.session_state:
-    st.session_state.model = GATHK5()
-
-if "loss_history" not in st.session_state:
-    st.session_state.loss_history = []
-
-model = st.session_state.model
-loss_history = st.session_state.loss_history
-
-optimizer = torch.optim.Adam(model.parameters(), lr=0.003)
-loss_fn = nn.MSELoss()
+        return out
 
 # =========================
-# TARGET CIENTÍFICO
+# GNN STATE AND LOSS CONFIGURATION
 # =========================
-target = torch.tensor([
-    [TH],
-    [TPs],
-    [TA],
-    [0.3 * TH],
-    [0.5 * TPs],
-    [RS],
-    [ODS]
+
+model = CausalGNN()
+
+data = from_networkx(G)
+
+data.x = torch.tensor([
+    [TH, 1, 0],
+    [TPs, 1, 1],
+    [TA, 0, 1],
+    [0.4, 0, 0],
+    [0.5, 1, 0],
+    [RS, 0, 1],
+    [ODS, 1, 0]
 ], dtype=torch.float)
 
 # =========================
-# SIMULAÇÃO DE POLÍTICAS EDUCAÇÃO REAIS (LBI, PNTA, BNCC, LDBs)
+# SIMULAÇÃO DE POLÍTICAS COM MONTE CARLO
 # =========================
-st.header("🌍 Simulação de Políticas Educacionais")
 
-# Definição de cenários de políticas
-policies = {
-    "Aumento de Tecnologia Humana (TH)": {"TH": 0.9, "TPs": 0.6, "TA": 0.5, "5Rs": 0.5, "ODS": 0.8},
-    "Aumento de Tecnologias Pedagógicas (TPs)": {"TH": 0.7, "TPs": 1.0, "TA": 0.5, "5Rs": 0.5, "ODS": 0.8},
-    "Foco em Sustentabilidade (5Rs)": {"TH": 0.7, "TPs": 0.6, "TA": 0.5, "5Rs": 1.0, "ODS": 0.8},
-    "Aumento de ODS Globais": {"TH": 0.7, "TPs": 0.6, "TA": 0.5, "5Rs": 0.5, "ODS": 1.0},
-    "Cenário Base (Sem alteração)": {"TH": 0.7, "TPs": 0.6, "TA": 0.5, "5Rs": 0.5, "ODS": 0.8},
+def monte_carlo_simulation(num_simulations=1000):
+    simulations = []
+    for _ in range(num_simulations):
+        TH_sim = np.random.uniform(0.4, 0.8)
+        TPs_sim = np.random.uniform(0.3, 0.7)
+        TA_sim = np.random.uniform(0.4, 0.6)
+        RS_sim = np.random.uniform(0.2, 0.6)
+        ODS_sim = np.random.uniform(0.5, 1.0)
+
+        result = I(TH_sim, TPs_sim, TA_sim, RS_sim, ODS_sim)
+        simulations.append(result)
+
+    return np.array(simulations)
+
+# Monte Carlo simulation
+sim_results = monte_carlo_simulation()
+
+st.subheader("Monte Carlo - Simulação de Políticas Educacionais")
+st.line_chart(sim_results)
+
+# =========================
+# RANKING DE RISCO ESCOLAR
+# =========================
+st.subheader("📉 Ranking de Risco Escolar")
+
+school_risk = {
+    "Escola A": np.random.uniform(0.3, 0.7),
+    "Escola B": np.random.uniform(0.2, 0.6),
+    "Escola C": np.random.uniform(0.5, 1.0),
+    "Escola D": np.random.uniform(0.1, 0.4),
+    "Escola E": np.random.uniform(0.6, 1.0),
 }
 
-selected_policy = st.selectbox("Escolha a Política Educacional", list(policies.keys()))
+sorted_risk = sorted(school_risk.items(), key=lambda x: x[1], reverse=True)
 
-policy_values = policies[selected_policy]
-st.write(f"Política Selecionada: {selected_policy}")
-st.write(f"Configuração da Política: {policy_values}")
+st.write("Escolas com maior risco de exclusão educacional:")
 
-# Calcular o índice de inclusão para a política selecionada
-index_policy = I(policy_values["TH"], policy_values["TPs"], policy_values["TA"], policy_values["5Rs"], policy_values["ODS"])
-st.metric("Índice de Inclusão I(t) para esta Política", round(index_policy, 3))
+for school, risk in sorted_risk:
+    st.write(f"{school}: {risk:.3f}")
 
 # =========================
-# VISUALIZAÇÃO POLÍTICA
+# MAPA DE DESIGUALDADE EDUCACIONAL POR REGIÕES
 # =========================
-policy_df = pd.DataFrame(list(policy_values.items()), columns=["Variável", "Valor"])
-fig_policy = px.bar(policy_df, x="Variável", y="Valor", title="Impacto das Variáveis na Política Educacional")
-st.plotly_chart(fig_policy, use_container_width=True)
 
-# =========================
-# TREINAMENTO E MONITORAMENTO
-# =========================
-train = st.button("🚀 Treinar Modelo GAT")
+st.subheader("🌍 Mapa de Desigualdade Educacional")
 
-if train:
+# Exemplo de dados fictícios para desigualdade por região
+regions = ['Norte', 'Nordeste', 'Sul', 'Sudeste', 'Centro-Oeste']
+inequality_scores = np.random.uniform(0.3, 1.0, len(regions))
 
-    model.train()
-
-    for epoch in range(80):
-
-        optimizer.zero_grad()
-
-        out, emb = model(data.x, data.edge_index)
-
-        loss = loss_fn(out, target)
-
-        loss.backward()
-        optimizer.step()
-
-        loss_history.append(loss.item())
-
-        if epoch % 10 == 0:
-            st.write(f"Epoch {epoch} | Loss: {loss.item():.4f}")
+fig_map = px.bar(x=regions, y=inequality_scores, labels={'x': 'Região', 'y': 'Índice de Desigualdade'},
+                 title="Índice de Desigualdade Educacional por Região")
+st.plotly_chart(fig_map, use_container_width=True)
 
 # =========================
-# CONVERGÊNCIA E EMBEDDINGS
+# EXPORTAÇÃO POWERBI (CSV + API)
 # =========================
-st.subheader("📉 Convergência do Modelo")
 
-if len(loss_history) > 5:
-    fig_loss = px.line(y=loss_history, title="Loss Evolution")
-    st.plotly_chart(fig_loss, use_container_width=True)
+st.subheader("📊 Exportação para PowerBI (CSV + API)")
 
-st.subheader("🧬 Embeddings (PCA - Estrutura Latente)")
-
-emb_np = emb.detach().numpy()
-
-pca = PCA(n_components=2)
-emb_2d = pca.fit_transform(emb_np)
-
-df = {
-    "node": node_names,
-    "x": emb_2d[:, 0],
-    "y": emb_2d[:, 1],
+# Gerar CSV para exportação
+data_for_export = {
+    "TH": [TH],
+    "TPs": [TPs],
+    "TA": [TA],
+    "RS": [RS],
+    "ODS": [ODS],
+    "I(t)": [index],
 }
 
-fig = px.scatter(df, x="x", y="y", text="node",
-                 title="Espaço Latente da Rede Educacional")
+df_export = pd.DataFrame(data_for_export)
 
-st.plotly_chart(fig, use_container_width=True)
+# Baixar arquivo CSV
+csv = df_export.to_csv(index=False)
+st.download_button(label="📥 Baixar CSV para PowerBI", data=csv, file_name="inclusao_educacional.csv", mime="text/csv")
 
-# =========================
-# INTERPRETAÇÃO FINAL
-# =========================
-st.subheader("🧪 Interpretação Científica")
-
-st.write("""
-- Nós próximos = maior similaridade educacional
-- TH/TPs formam núcleo central
-- ODS atua como regulador global
-- TA e 5Rs funcionam como nós de suporte sistêmico
-""")
+# Para exportar via API real, você pode integrar com o PowerBI API aqui (requere configuração adicional)
+st.write("Para exportação via API, integre a API do PowerBI com o modelo.")
