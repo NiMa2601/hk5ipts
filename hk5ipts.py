@@ -4,7 +4,7 @@ import plotly.graph_objects as go
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch_geometric.nn import GCNConv
+from torch_geometric.nn import GATConv
 from torch_geometric.utils import from_networkx
 
 st.set_page_config(page_title="HK5-IPTS", layout="wide")
@@ -155,10 +155,10 @@ st.write("Densidade da rede:")
 st.write(nx.density(G))
 
 # =========================
-# IA (GNN REAL) AVANÇADA
+# IA (GAT REAL) AVANÇADA
 # =========================
 
-st.header("IA (GNN real)")
+st.header("IA (GAT Científico)")
 
 # =========================
 # CONVERTER GRAFO CORRETAMENTE
@@ -166,56 +166,50 @@ st.header("IA (GNN real)")
 data = from_networkx(G)
 
 # features dos nós (simuladas)
-data.x = torch.rand((G.number_of_nodes(), 3))  # Exemplo de 3 características por nó
+data.x = torch.tensor([
+    [TH, 1, 0],
+    [TPs, 1, 1],
+    [TA, 0, 1],
+    [0.4, 0, 0],
+    [0.5, 1, 0],
+    [RS, 0, 1],
+    [ODS, 1, 0]
+], dtype=torch.float)
 
 # =========================
-# MODELO GNN AVANÇADO
+# MODELO GAT AVANÇADO
 # =========================
-class AdvancedGNN(torch.nn.Module):
+class GATHK5(torch.nn.Module):
     def __init__(self):
-        super(AdvancedGNN, self).__init__()
+        super().__init__()
 
-        self.conv1 = GCNConv(3, 16)
-        self.bn1 = torch.nn.BatchNorm1d(16)
+        self.gat1 = GATConv(3, 16, heads=2, concat=True)
+        self.gat2 = GATConv(32, 16, heads=2, concat=True)
+        self.gat3 = GATConv(32, 8, heads=1, concat=False)
 
-        self.conv2 = GCNConv(16, 16)
-        self.bn2 = torch.nn.BatchNorm1d(16)
+        self.out = torch.nn.Linear(8, 1)
 
-        self.conv3 = GCNConv(16, 8)
-        self.bn3 = torch.nn.BatchNorm1d(8)
-
-        self.conv_out = GCNConv(8, 1)
-
-        self.dropout = torch.nn.Dropout(p=0.3)
+        self.dropout = torch.nn.Dropout(0.3)
 
     def forward(self, x, edge_index):
 
-        # Camada 1
-        x1 = self.conv1(x, edge_index)
-        x1 = self.bn1(x1)
-        x1 = F.relu(x1)
-        x1 = self.dropout(x1)
+        x = F.elu(self.gat1(x, edge_index))
+        x = self.dropout(x)
 
-        # Camada 2 (residual)
-        x2 = self.conv2(x1, edge_index)
-        x2 = self.bn2(x2)
-        x2 = F.relu(x2)
-        x2 = x2 + x1  # RESIDUAL CONNECTION
+        x = F.elu(self.gat2(x, edge_index))
+        x = self.dropout(x)
 
-        # Camada 3
-        x3 = self.conv3(x2, edge_index)
-        x3 = self.bn3(x3)
-        x3 = F.relu(x3)
+        x = F.elu(self.gat3(x, edge_index))
 
-        # Saída
-        out = self.conv_out(x3, edge_index)
+        embeddings = x
+        out = self.out(x)
 
-        return out, x3  # retorna também embeddings
+        return out, embeddings
 
 # =========================
 # CONFIGURANDO OTIMIZADOR E PERDA
 # =========================
-optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
+optimizer = torch.optim.Adam(model.parameters(), lr=0.005)
 loss_fn = torch.nn.MSELoss()
 
 loss_history = []
@@ -223,7 +217,7 @@ loss_history = []
 # =========================
 # TREINAMENTO COM MONITORAMENTO
 # =========================
-for epoch in range(100):  # Número de épocas de treinamento
+for epoch in range(60):  # Número de épocas de treinamento
     model.train()  # Modo de treinamento
     
     optimizer.zero_grad()  # Zera os gradientes
