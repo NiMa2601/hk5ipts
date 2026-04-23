@@ -35,15 +35,20 @@ edges = [
 G.add_edges_from(edges)
 
 # =========================
-# FUNÇÃO DE INCLUSÃO
+# FUNÇÃO DE INCLUSÃO COM CAUSALIDADE
 # =========================
-def I(th, tps, ta, rs, ods):
+def I(th, tps, ta, rs, ods, bullying=0.0, nutricion=0.0, violencia_domestica=0.0, exclusao_digital=0.0):
+    # Causalidade com variáveis adicionais
     return (
         0.3 * th +
         0.25 * tps +
         0.2 * ta +
         0.15 * rs +
-        0.1 * ods
+        0.1 * ods +
+        bullying * 0.1 +      # Impacto do bullying
+        nutricion * 0.05 +    # Impacto da nutrição
+        violencia_domestica * 0.1 +  # Impacto da violência doméstica
+        exclusao_digital * 0.2  # Impacto da exclusão digital
     )
 
 # =========================
@@ -56,6 +61,11 @@ TPs = st.sidebar.slider("Tecnologias Pedagógicas (TPs)", 0.0, 1.0, 0.6)
 TA = st.sidebar.slider("Tecnologia Assistiva (TA)", 0.0, 1.0, 0.5)
 RS = st.sidebar.slider("Sustentabilidade (5Rs)", 0.0, 1.0, 0.5)
 ODS = st.sidebar.slider("ODS Globais", 0.0, 1.0, 0.8)
+# Variáveis causais
+bullying = st.sidebar.slider("Impacto do Bullying", 0.0, 1.0, 0.2)
+nutricion = st.sidebar.slider("Impacto da Nutrição", 0.0, 1.0, 0.3)
+violencia_domestica = st.sidebar.slider("Impacto da Violência Doméstica", 0.0, 1.0, 0.1)
+exclusao_digital = st.sidebar.slider("Impacto da Exclusão Digital", 0.0, 1.0, 0.2)
 
 # =========================
 # TÍTULO PRINCIPAL
@@ -65,7 +75,7 @@ st.title("HK5-IPTS – Sistema de Inclusão Educacional")
 # =========================
 # CÁLCULO DE I(t)
 # =========================
-index = I(TH, TPs, TA, RS, ODS)
+index = I(TH, TPs, TA, RS, ODS, bullying, nutricion, violencia_domestica, exclusao_digital)
 st.metric("Índice de Inclusão I(t)", round(index, 3))
 
 # =========================
@@ -103,60 +113,61 @@ fig.add_trace(go.Scatter(
 st.plotly_chart(fig, use_container_width=True)
 
 # =========================
-# DOSSÊ (ARTIGO EMBUTIDO)
+# SIMULAÇÃO POLÍTICAS COM MONTE CARLO
 # =========================
-st.header("Dossiê Científico Integrado")
-st.markdown("""
-## Modelo Matemático
-I(t) = αTH + βTPs + γTA + δ5Rs + εODS
+def monte_carlo_simulation(num_simulations=1000):
+    simulation_results = []
+    for _ in range(num_simulations):
+        simulated_th = np.random.uniform(0, 1)
+        simulated_tps = np.random.uniform(0, 1)
+        simulated_ta = np.random.uniform(0, 1)
+        simulated_rs = np.random.uniform(0, 1)
+        simulated_ods = np.random.uniform(0, 1)
+        simulated_bullying = np.random.uniform(0, 1)
+        simulated_nutricion = np.random.uniform(0, 1)
+        simulated_violencia_domestica = np.random.uniform(0, 1)
+        simulated_exclusao_digital = np.random.uniform(0, 1)
+        
+        simulated_inclusion = I(simulated_th, simulated_tps, simulated_ta, simulated_rs, simulated_ods,
+                                simulated_bullying, simulated_nutricion, simulated_violencia_domestica,
+                                simulated_exclusao_digital)
+        simulation_results.append(simulated_inclusion)
+        
+    return simulation_results
 
-## Interpretação
-TH = tecnologia humana (centro ético)  
-TPs = tecnologias pedagógicas  
-TA = tecnologia assistiva  
-5Rs = sustentabilidade  
-ODS = diretrizes globais  
+simulation_results = monte_carlo_simulation()
 
-## Hipótese
-A inclusão educacional emerge da interação entre tecnologia humana e tecnologias pedagógicas em rede dinâmica.
-
-## Modelo de Rede
-Sistema representado como grafo ponderado e dinâmico.
-""")
-
-# =========================
-# SIMULAÇÃO IA (VERSÃO SIMPLES)
-# =========================
-st.header("Simulação Computacional")
-st.write("O sistema simula relações entre nós da rede educacional e calcula impacto no índice de inclusão.")
-
-# =========================
-# VALIDAÇÃO
-# =========================
-st.header("Validação do Sistema")
-st.write("O modelo permite análise de estabilidade da rede e sensibilidade dos parâmetros educacionais.")
+st.subheader("🔮 Simulação de Políticas Educacionais com Monte Carlo")
+st.write(f"Média do índice de inclusão simulada: {np.mean(simulation_results):.2f}")
+st.line_chart(simulation_results)
 
 # =========================
-# IA (GAT CIENTÍFICO)
+# EXPORTAÇÃO PARA POWERBI
 # =========================
+st.subheader("📥 Exportação de Dados")
 
-st.header("🧠 IA – Sistema GAT Científico Avançado")
-data = from_networkx(G)
+csv_data = pd.DataFrame({
+    "TH": [TH],
+    "TPs": [TPs],
+    "TA": [TA],
+    "RS": [RS],
+    "ODS": [ODS],
+    "Bullying": [bullying],
+    "Nutrição": [nutricion],
+    "Violência Doméstica": [violencia_domestica],
+    "Exclusão Digital": [exclusao_digital],
+    "Índice de Inclusão": [index],
+})
 
-data.x = torch.tensor([
-    [TH, 1, 0],
-    [TPs, 1, 1],
-    [TA, 0, 1],
-    [0.4, 0, 0],
-    [0.5, 1, 0],
-    [RS, 0, 1],
-    [ODS, 1, 0]
-], dtype=torch.float)
-
-node_names = nodes
+st.download_button(
+    label="Baixar CSV de Dados",
+    data=csv_data.to_csv(index=False),
+    file_name="dados_inclusao_educacional.csv",
+    mime="text/csv"
+)
 
 # =========================
-# MODELO GAT AVANÇADO
+# GNN AVANÇADA + EMBEDDINGS
 # =========================
 class GATHK5(nn.Module):
     def __init__(self):
@@ -182,138 +193,3 @@ class GATHK5(nn.Module):
         out = torch.sigmoid(self.out(x))
 
         return out, embeddings
-
-# =========================
-# STATE SAFE
-# =========================
-if "model" not in st.session_state:
-    st.session_state.model = GATHK5()
-
-if "loss_history" not in st.session_state:
-    st.session_state.loss_history = []
-
-model = st.session_state.model
-loss_history = st.session_state.loss_history
-
-optimizer = torch.optim.Adam(model.parameters(), lr=0.003)
-loss_fn = nn.MSELoss()
-
-# =========================
-# TARGET ESTÁVEL
-# =========================
-target = torch.tensor([[index] for _ in range(len(nodes))], dtype=torch.float)
-
-# =========================
-# TREINAMENTO CONTROLADO
-# =========================
-train = st.button("🚀 Treinar GAT")
-
-if train:
-    model.train()
-    for epoch in range(70):
-        optimizer.zero_grad()
-        out, emb = model(data.x, data.edge_index)
-        loss = loss_fn(out, target)
-        loss.backward()
-        optimizer.step()
-        loss_history.append(loss.item())
-        if epoch % 10 == 0:
-            st.write(f"Epoch {epoch} | Loss: {loss.item():.4f}")
-
-# =========================
-# RESULTADOS FINAIS
-# =========================
-model.eval()
-with torch.no_grad():
-    out, emb = model(data.x, data.edge_index)
-
-col1, col2 = st.columns(2)
-
-with col1:
-    st.subheader("📊 Previsão I(t)")
-    st.write(torch.clamp(out, 0, 1).numpy())
-
-with col2:
-    st.subheader("📈 I(t) médio")
-    st.metric("Índice médio", round(float(out.mean()), 3))
-
-# =========================
-# CONVERGÊNCIA (ROBUSTA)
-# =========================
-st.subheader("📉 Convergência")
-if len(loss_history) > 5:
-    st.line_chart(loss_history)
-
-# =========================
-# EMBEDDINGS + PCA (INTERPRETAÇÃO REAL)
-# =========================
-st.subheader("🧬 Embeddings (estrutura latente)")
-
-emb_np = emb.detach().numpy()
-
-pca = PCA(n_components=2)
-emb_2d = pca.fit_transform(emb_np)
-
-df = {
-    "node": node_names,
-    "x": emb_2d[:, 0],
-    "y": emb_2d[:, 1],
-}
-
-fig = px.scatter(df, x="x", y="y", text="node", title="Mapa Latente da Rede Educacional")
-st.plotly_chart(fig, use_container_width=True)
-
-# =========================
-# INTERPRETAÇÃO CIENTÍFICA
-# =========================
-st.subheader("🧪 Interpretação")
-st.write("""
-- Nós próximos = maior similaridade educacional
-- TH/TPs formam núcleo estrutural
-- ODS atua como regulador global
-- TA e 5Rs funcionam como nós de suporte
-""")
-
-# =========================
-# SIMULAÇÃO POLÍTICAS COM MONTE CARLO
-# =========================
-def monte_carlo_simulation(num_simulations=1000):
-    simulation_results = []
-    for _ in range(num_simulations):
-        simulated_th = np.random.uniform(0, 1)
-        simulated_tps = np.random.uniform(0, 1)
-        simulated_ta = np.random.uniform(0, 1)
-        simulated_rs = np.random.uniform(0, 1)
-        simulated_ods = np.random.uniform(0, 1)
-        
-        simulated_inclusion = I(simulated_th, simulated_tps, simulated_ta, simulated_rs, simulated_ods)
-        simulation_results.append(simulated_inclusion)
-        
-    return simulation_results
-
-simulation_results = monte_carlo_simulation()
-
-st.subheader("🔮 Simulação de Políticas Educacionais com Monte Carlo")
-st.write(f"Média do índice de inclusão simulada: {np.mean(simulation_results):.2f}")
-st.line_chart(simulation_results)
-
-# =========================
-# EXPORTAÇÃO PARA POWERBI
-# =========================
-st.subheader("📥 Exportação de Dados")
-
-csv_data = pd.DataFrame({
-    "TH": [TH],
-    "TPs": [TPs],
-    "TA": [TA],
-    "RS": [RS],
-    "ODS": [ODS],
-    "Índice de Inclusão": [index],
-})
-
-st.download_button(
-    label="Baixar CSV de Dados",
-    data=csv_data.to_csv(index=False),
-    file_name="dados_inclusao_educacional.csv",
-    mime="text/csv"
-)
