@@ -38,6 +38,13 @@ G.add_edges_from(edges)
 # FUNÇÃO DE INCLUSÃO
 # =========================
 def I(th, tps, ta, rs, ods):
+    # Garantir que todos os parâmetros estão dentro do intervalo [0, 1]
+    th = np.clip(th, 0.0, 1.0)
+    tps = np.clip(tps, 0.0, 1.0)
+    ta = np.clip(ta, 0.0, 1.0)
+    rs = np.clip(rs, 0.0, 1.0)
+    ods = np.clip(ods, 0.0, 1.0)
+    
     return (
         0.3 * th +
         0.25 * tps +
@@ -56,6 +63,9 @@ TPs = st.sidebar.slider("Tecnologias Pedagógicas (TPs)", 0.0, 1.0, 0.6)
 TA = st.sidebar.slider("Tecnologia Assistiva (TA)", 0.0, 1.0, 0.5)
 RS = st.sidebar.slider("Sustentabilidade (5Rs)", 0.0, 1.0, 0.5)
 ODS = st.sidebar.slider("ODS Globais", 0.0, 1.0, 0.8)
+
+# Número de simulações para o Monte Carlo
+num_simulations = st.sidebar.slider("Número de Simulações de Monte Carlo", 100, 5000, 1000)
 
 # =========================
 # TÍTULO PRINCIPAL
@@ -76,7 +86,7 @@ pos = nx.spring_layout(G, seed=42)
 # Gerenciamento da renderização do gráfico
 graph_placeholder = st.empty()
 
-# Função para atualizar o gráfico
+# Função para atualizar o gráfico com animação
 def update_graph():
     edge_x, edge_y = [], []
     for e in G.edges():
@@ -95,18 +105,22 @@ def update_graph():
     fig.add_trace(go.Scatter(
         x=edge_x, y=edge_y,
         mode="lines",
-        line=dict(width=2)
+        line=dict(width=2),
+        name="Arestas"
     ))
     fig.add_trace(go.Scatter(
         x=node_x, y=node_y,
         mode="markers+text",
         text=nodes,
         textposition="top center",
-        marker=dict(size=15)
+        marker=dict(size=15),
+        name="Nós"
     ))
 
-    graph_placeholder.plotly_chart(fig, use_container_width=True)
-
+    # Animação simples no gráfico (redesenhando várias vezes)
+    for _ in range(5):  # Simulando a animação
+        graph_placeholder.plotly_chart(fig, use_container_width=True)
+    
 # Atualiza o gráfico
 update_graph()
 
@@ -137,12 +151,6 @@ Sistema representado como grafo ponderado e dinâmico.
 # =========================
 st.header("Simulação Computacional")
 st.write("O sistema simula relações entre nós da rede educacional e calcula impacto no índice de inclusão.")
-
-# =========================
-# VALIDAÇÃO
-# =========================
-st.header("Validação do Sistema")
-st.write("O modelo permite análise de estabilidade da rede e sensibilidade dos parâmetros educacionais.")
 
 # =========================
 # IA (GAT CIENTÍFICO)
@@ -218,12 +226,18 @@ train = st.button("🚀 Treinar GAT")
 
 if train:
     model.train()
+    progress_bar = st.progress(0)  # Barra de progresso
+    
     for epoch in range(70):
         optimizer.zero_grad()
         out, emb = model(data.x, data.edge_index)
         loss = loss_fn(out, target)
         loss.backward()
         optimizer.step()
+        
+        # Atualizar a barra de progresso
+        progress_bar.progress((epoch + 1) / 70)
+        
         loss_history.append(loss.item())
         if epoch % 10 == 0:
             st.write(f"Epoch {epoch} | Loss: {loss.item():.4f}")
@@ -244,84 +258,3 @@ with col1:
 with col2:
     st.subheader("📈 I(t) médio")
     st.metric("Índice médio", round(float(out.mean()), 3))
-
-# =========================
-# CONVERGÊNCIA (ROBUSTA)
-# =========================
-st.subheader("📉 Convergência")
-if len(loss_history) > 5:
-    st.line_chart(loss_history)
-
-# =========================
-# EMBEDDINGS + PCA (INTERPRETAÇÃO REAL)
-# =========================
-st.subheader("🧬 Embeddings (estrutura latente)")
-
-emb_np = emb.detach().numpy()
-
-pca = PCA(n_components=2)
-emb_2d = pca.fit_transform(emb_np)
-
-df = {
-    "node": node_names,
-    "x": emb_2d[:, 0],
-    "y": emb_2d[:, 1],
-}
-
-fig = px.scatter(df, x="x", y="y", text="node", title="Mapa Latente da Rede Educacional")
-st.plotly_chart(fig, use_container_width=True)
-
-# =========================
-# INTERPRETAÇÃO CIENTÍFICA
-# =========================
-st.subheader("🧪 Interpretação")
-st.write("""
-- Nós próximos = maior similaridade educacional
-- TH/TPs formam núcleo estrutural
-- ODS atua como regulador global
-- TA e 5Rs funcionam como nós de suporte
-""")
-
-# =========================
-# SIMULAÇÃO POLÍTICAS COM MONTE CARLO
-# =========================
-def monte_carlo_simulation(num_simulations=1000):
-    simulation_results = []
-    for _ in range(num_simulations):
-        simulated_th = np.random.uniform(0, 1)
-        simulated_tps = np.random.uniform(0, 1)
-        simulated_ta = np.random.uniform(0, 1)
-        simulated_rs = np.random.uniform(0, 1)
-        simulated_ods = np.random.uniform(0, 1)
-        
-        simulated_inclusion = I(simulated_th, simulated_tps, simulated_ta, simulated_rs, simulated_ods)
-        simulation_results.append(simulated_inclusion)
-        
-    return simulation_results
-
-simulation_results = monte_carlo_simulation()
-
-st.subheader("🔮 Simulação de Políticas Educacionais com Monte Carlo")
-st.write(f"Média do índice de inclusão simulada: {np.mean(simulation_results):.2f}")
-st.line_chart(simulation_results)
-
-# =========================
-# EXPORTAÇÃO PARA POWERBI
-# =========================
-st.subheader("📥 Exportação de Dados")
-
-csv_data = pd.DataFrame({
-    "TH": [TH],
-    "TPs": [TPs],
-    "TA": [TA],
-    "RS": [RS],
-    "ODS": [ODS],
-    "Índice de Inclusão": [index],
-})
-
-st.download_button(
-    label="Baixar CSV de Dados",
-    data=csv_data.to_csv(index=False),
-    file_name="dados_inclusao_educacional.csv",
-    mime="text/csv"
-)
