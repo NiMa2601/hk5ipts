@@ -6,9 +6,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch_geometric.nn import GATConv
 from torch_geometric.utils import from_networkx
-from sklearn.decomposition import PCA
 import numpy as np
-import plotly.express as px
 import pandas as pd
 
 st.set_page_config(page_title="HK5-IPTS", layout="wide")
@@ -38,7 +36,6 @@ G.add_edges_from(edges)
 # FUNÇÃO DE INCLUSÃO
 # =========================
 def I(th, tps, ta, rs, ods):
-    # Garantir que todos os parâmetros estão dentro do intervalo [0, 1]
     th = np.clip(th, 0.0, 1.0)
     tps = np.clip(tps, 0.0, 1.0)
     ta = np.clip(ta, 0.0, 1.0)
@@ -64,7 +61,6 @@ TA = st.sidebar.slider("Tecnologia Assistiva (TA)", 0.0, 1.0, 0.5)
 RS = st.sidebar.slider("Sustentabilidade (5Rs)", 0.0, 1.0, 0.5)
 ODS = st.sidebar.slider("ODS Globais", 0.0, 1.0, 0.8)
 
-# Número de simulações para o Monte Carlo
 num_simulations = st.sidebar.slider("Número de Simulações de Monte Carlo", 100, 5000, 1000)
 
 # =========================
@@ -83,8 +79,8 @@ st.metric("Índice de Inclusão I(t)", round(index, 3))
 # =========================
 pos = nx.spring_layout(G, seed=42)
 
-# Função para atualizar o gráfico com animação
-def update_graph():
+@st.cache_data
+def create_graph():
     edge_x, edge_y = [], []
     for e in G.edges():
         x0, y0 = pos[e[0]]
@@ -102,7 +98,7 @@ def update_graph():
     fig.add_trace(go.Scatter(
         x=edge_x, y=edge_y,
         mode="lines",
-        line=dict(width=2),
+        line=dict(width=2, color="rgba(125,125,125,0.2)"),
         name="Arestas"
     ))
     fig.add_trace(go.Scatter(
@@ -110,14 +106,19 @@ def update_graph():
         mode="markers+text",
         text=nodes,
         textposition="top center",
-        marker=dict(size=15),
+        marker=dict(size=15, color="blue"),
         name="Nós"
     ))
-
+    
+    fig.update_layout(
+        showlegend=False,
+        hovermode='closest',
+        margin=dict(b=20,l=5,r=5,t=40)
+    )
+    
     return fig
 
-# Atualiza o gráfico
-st.plotly_chart(update_graph(), use_container_width=True)
+st.plotly_chart(create_graph(), use_container_width=True, key="graph_main")
 
 # =========================
 # DOSSÊ (ARTIGO EMBUTIDO)
@@ -128,11 +129,11 @@ st.markdown("""
 I(t) = αTH + βTPs + γTA + δ5Rs + εODS
 
 ## Interpretação
-TH = tecnologia humana (centro ético)  
-TPs = tecnologias pedagógicas  
-TA = tecnologia assistiva  
-5Rs = sustentabilidade  
-ODS = diretrizes globais  
+- **TH** = tecnologia humana (centro ético)  
+- **TPs** = tecnologias pedagógicas  
+- **TA** = tecnologia assistiva  
+- **5Rs** = sustentabilidade  
+- **ODS** = diretrizes globais  
 
 ## Hipótese
 A inclusão educacional emerge da interação entre tecnologia humana e tecnologias pedagógicas em rede dinâmica.
@@ -142,7 +143,7 @@ Sistema representado como grafo ponderado e dinâmico.
 """)
 
 # =========================
-# SIMULAÇÃO IA (VERSÃO SIMPLES)
+# SIMULAÇÃO IA
 # =========================
 st.header("Simulação Computacional")
 st.write("O sistema simula relações entre nós da rede educacional e calcula impacto no índice de inclusão.")
@@ -152,6 +153,8 @@ st.write("O sistema simula relações entre nós da rede educacional e calcula i
 # =========================
 
 st.header("🧠 IA – Sistema GAT Científico Avançado")
+
+# Preparar dados
 data = from_networkx(G)
 
 data.x = torch.tensor([ 
@@ -164,65 +167,60 @@ data.x = torch.tensor([
     [ODS, 1, 0] 
 ], dtype=torch.float)
 
-node_names = nodes
-
 # =========================
-# MODELO GAT AVANÇADO
+# MODELO GAT
 # =========================
 class GATHK5(nn.Module):
     def __init__(self):
         super().__init__()
-
         self.gat1 = GATConv(3, 16, heads=2)
         self.gat2 = GATConv(32, 16, heads=2)
         self.gat3 = GATConv(32, 16, heads=1)
-
         self.out = nn.Linear(16, 1)
         self.dropout = nn.Dropout(0.25)
 
     def forward(self, x, edge_index):
         x = F.elu(self.gat1(x, edge_index))
         x = self.dropout(x)
-
         x = F.elu(self.gat2(x, edge_index))
         x = self.dropout(x)
-
         x = F.elu(self.gat3(x, edge_index))
-
-        embeddings = x
         out = torch.sigmoid(self.out(x))
-
-        return out, embeddings
+        return out, x
 
 # =========================
-# STATE SAFE
+# INICIALIZAR ESTADO
 # =========================
 if "model" not in st.session_state:
     st.session_state.model = GATHK5()
-
-if "loss_history" not in st.session_state:
     st.session_state.loss_history = []
+    st.session_state.training_complete = False
 
 model = st.session_state.model
-loss_history = st.session_state.loss_history
-
-optimizer = torch.optim.Adam(model.parameters(), lr=0.003)
-loss_fn = nn.MSELoss()
-
-# =========================
-# TARGET ESTÁVEL
-# =========================
 target = torch.tensor([[index] for _ in range(len(nodes))], dtype=torch.float)
 
 # =========================
-# TREINAMENTO CONTROLADO
+# TREINAMENTO
 # =========================
-train = st.button("🚀 Treinar GAT")
+col_train, col_info = st.columns([1, 3])
+
+with col_train:
+    train = st.button("🚀 Treinar GAT", use_container_width=True)
+
+with col_info:
+    st.info(f"Status: {'✅ Treinamento ativo' if train else '⏸️ Aguardando...'}")
 
 if train:
+    st.session_state.training_complete = False
+    st.session_state.loss_history = []
+    
     model.train()
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.003)
+    loss_fn = nn.MSELoss()
+    
     progress_bar = st.progress(0)
-    loss_placeholder = st.empty()
+    status_text = st.empty()
+    loss_chart = st.empty()
     
     for epoch in range(70):
         optimizer.zero_grad()
@@ -231,18 +229,32 @@ if train:
         loss.backward()
         optimizer.step()
         
-        # Atualizar a barra de progresso
+        st.session_state.loss_history.append(loss.item())
+        
+        # Atualizar progresso
         progress = (epoch + 1) / 70
         progress_bar.progress(progress)
         
-        loss_history.append(loss.item())
-        
+        # Atualizar status
         if epoch % 10 == 0:
-            loss_placeholder.write(f"Epoch {epoch} | Loss: {loss.item():.4f}")
+            status_text.write(f"**Epoch {epoch}/70** | Loss: `{loss.item():.6f}`")
+        
+        # Atualizar gráfico a cada 5 epochs
+        if epoch % 5 == 0 and len(st.session_state.loss_history) > 0:
+            loss_df = pd.DataFrame({
+                "Epoch": range(len(st.session_state.loss_history)),
+                "Loss": st.session_state.loss_history
+            })
+            loss_chart.line_chart(loss_df.set_index("Epoch"), use_container_width=True)
+    
+    st.session_state.training_complete = True
+    status_text.success("✅ Treinamento concluído!")
 
 # =========================
-# RESULTADOS FINAIS
+# RESULTADOS
 # =========================
+st.divider()
+
 model.eval()
 with torch.no_grad():
     out, emb = model(data.x, data.edge_index)
@@ -250,23 +262,52 @@ with torch.no_grad():
 col1, col2 = st.columns(2)
 
 with col1:
-    st.subheader("📊 Previsão I(t)")
+    st.subheader("📊 Previsões por Nó")
     predictions = torch.clamp(out, 0, 1).detach().numpy()
-    st.dataframe(
-        pd.DataFrame({
-            "Nó": nodes,
-            "Previsão": predictions.flatten()
-        })
-    )
+    results_df = pd.DataFrame({
+        "Nó": nodes,
+        "Previsão": predictions.flatten().round(4)
+    })
+    st.dataframe(results_df, use_container_width=True, hide_index=True)
 
 with col2:
-    st.subheader("📈 I(t) médio")
-    st.metric("Índice médio", round(float(out.mean()), 3))
+    st.subheader("📈 Índice Médio")
+    avg_index = float(out.mean())
+    st.metric("I(t) Médio", round(avg_index, 4))
+    
+    # Comparação
+    col_comp1, col_comp2 = st.columns(2)
+    with col_comp1:
+        st.metric("I(t) Calculado", round(index, 4), delta="baseline")
+    with col_comp2:
+        delta = round(avg_index - index, 4)
+        st.metric("Diferença", delta, delta=f"{delta:+.4f}")
 
 # =========================
-# GRÁFICO DE HISTÓRICO DE LOSS
+# HISTÓRICO FINAL
 # =========================
-if loss_history:
-    st.subheader("📉 Histórico de Loss")
-    loss_df = pd.DataFrame({"Epoch": range(len(loss_history)), "Loss": loss_history})
-    st.line_chart(loss_df.set_index("Epoch"))
+if st.session_state.loss_history:
+    st.divider()
+    st.subheader("📉 Histórico de Treinamento")
+    
+    loss_df = pd.DataFrame({
+        "Epoch": range(len(st.session_state.loss_history)),
+        "Loss": st.session_state.loss_history
+    })
+    
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=loss_df["Epoch"],
+        y=loss_df["Loss"],
+        mode="lines",
+        name="Loss",
+        line=dict(color="red", width=2)
+    ))
+    fig.update_layout(
+        title="Evolução do Loss",
+        xaxis_title="Época",
+        yaxis_title="Valor do Loss",
+        hovermode="x unified"
+    )
+    
+    st.plotly_chart(fig, use_container_width=True, key="loss_chart_final")
